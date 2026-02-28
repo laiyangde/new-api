@@ -51,6 +51,66 @@ web/           — React frontend
 - Semi UI locale synced via `SemiLocaleWrapper`
 - CLI tools: `bun run i18n:extract`, `bun run i18n:sync`, `bun run i18n:lint`
 
+## Branch Management Workflow
+
+### Branch Structure
+
+```
+upstream/main  ──●──●──●──●──●   （上游源仓库）
+                      ↓ reset --hard
+upstream-sync  ──●──●──●──●──●   （只镜像上游，不混入任何自己的代码）
+                      ↓ merge（需要时）
+dev            ──●──●──●──●──●   （日常开发 + 合入上游变更）
+                            ↓ merge（稳定后）
+main           ──●─────────●      （线上稳定版本）
+```
+
+| Branch | Purpose | Who merges in |
+|--------|---------|---------------|
+| `upstream-sync` | Mirror upstream only, always clean | Only `upstream/main` |
+| `dev` | Daily development + upstream integration | Own commits + `upstream-sync` |
+| `main` | Production stable version | Only `dev` (when stable) |
+
+### Remote Setup (one-time)
+
+```bash
+git remote add upstream git@github.com:QuantumNous/new-api.git
+```
+
+### Daily Development (on dev)
+
+```bash
+git checkout dev
+# ... write code ...
+git add .
+git commit -m "feat: xxx"
+```
+
+### Sync Upstream (as needed)
+
+```bash
+# Step 1: update upstream-sync mirror
+git checkout upstream-sync
+git fetch upstream
+git reset --hard upstream/main
+git push origin upstream-sync --force-with-lease
+
+# Step 2: merge into dev
+git checkout dev
+git merge upstream-sync
+# resolve conflicts if any, then commit
+git push origin dev
+```
+
+### Release Stable Version (dev → main)
+
+```bash
+git checkout main
+git merge dev
+git push origin main
+git tag v1.x.x && git push origin v1.x.x
+```
+
 ## Rules
 
 ### Rule 1: JSON Package — Use `common/json.go`
